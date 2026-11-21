@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NLP Authorship Verification - Kiểm tra Tác giả Bài báo</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>Hệ thống Phát hiện Bài báo Sai Tác giả (NLP)</h1>
+        <p>Hỗ trợ tải trực tiếp tài liệu (.PDF, .DOCX, .TXT) hoặc dán nội dung văn bản để đối chiếu</p>
+    </header>
+
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form action="/analyze" method="post" enctype="multipart/form-data" onsubmit="const btn = this.querySelector('button'); btn.disabled = true; btn.innerText = 'Đang phân tích PhoBERT & Stylometry...';">
+        <div class="grid-2">
+            <div class="card">
+                <span class="section-label">1. Bài báo gốc (Mẫu chuẩn của tác giả)</span>
+                <div class="file-upload-box">
+                    <input type="file" name="ref_file" accept=".pdf,.docx,.txt">
+                    <div class="file-hint">Tải lên file .pdf, .docx, .txt hoặc dán nội dung bên dưới</div>
+                    {% if ref_filename %}
+                    <div class="file-loaded">Đã trích xuất từ: {{ ref_filename }}</div>
+                    {% endif %}
+                </div>
+                <textarea name="ref_text" placeholder="Nội dung bài báo mẫu chuẩn sẽ hiển thị tại đây hoặc bạn có thể dán trực tiếp...">{{ ref_text }}</textarea>
+            </div>
+
+            <div class="card">
+                <span class="section-label">2. Bài báo cần kiểm tra (Nghi vấn sai tác giả)</span>
+                <div class="file-upload-box">
+                    <input type="file" name="target_file" accept=".pdf,.docx,.txt">
+                    <div class="file-hint">Tải lên file .pdf, .docx, .txt hoặc dán nội dung bên dưới</div>
+                    {% if target_filename %}
+                    <div class="file-loaded">Đã trích xuất từ: {{ target_filename }}</div>
+                    {% endif %}
+                </div>
+                <textarea name="target_text" placeholder="Nội dung bài báo cần kiểm tra sẽ hiển thị tại đây hoặc bạn có thể dán trực tiếp...">{{ target_text }}</textarea>
+            </div>
+        </div>
+        <div class="btn-wrap">
+            <button type="submit">Phân tích & Đối chiếu Tác giả</button>
+        </div>
+    </form>
+
+    {% if result %}
+    <div class="result-box card">
+        <div class="verdict-banner status-{{ result.status }}">
+            <div class="score-header">
+                <span class="verdict-title">{{ result.verdict }}</span>
+                <span class="big-score">Độ tương đồng: {{ result.final_score }}%</span>
+            </div>
+            <p>{{ result.explanation }}</p>
+            <div class="sub-scores">
+                <div><strong>Điểm Stylometry (Thói quen viết & Hư từ):</strong> {{ result.style_score }}%</div>
+                <div><strong>Điểm PhoBERT (Cấu trúc ngữ nghĩa sâu):</strong> {{ result.bert_score }}%</div>
+            </div>
+        </div>
+
+        <h3>So sánh chi tiết Dấu vân tay Ngôn ngữ (Stylometry)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Chỉ số đặc trưng</th>
+                    <th>Bài báo gốc (Mẫu chuẩn)</th>
+                    <th>Bài báo kiểm tra</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Tổng số từ (đã tách từ ghép)</td>
+                    <td>{{ result.ref_metrics.total_words }} từ</td>
+                    <td>{{ result.target_metrics.total_words }} từ</td>
+                </tr>
+                <tr>
+                    <td>Độ dài câu trung bình</td>
+                    <td>{{ result.ref_metrics.avg_sent_len }} từ/câu</td>
+                    <td>{{ result.target_metrics.avg_sent_len }} từ/câu</td>
+                </tr>
+                <tr>
+                    <td>Độ dài từ trung bình</td>
+                    <td>{{ result.ref_metrics.avg_word_len }} ký tự</td>
+                    <td>{{ result.target_metrics.avg_word_len }} ký tự</td>
+                </tr>
+                <tr>
+                    <td>Độ phong phú từ vựng (TTR)</td>
+                    <td>{{ result.ref_metrics.ttr }}%</td>
+                    <td>{{ result.target_metrics.ttr }}%</td>
+                </tr>
+                <tr>
+                    <td>Hư từ sử dụng nhiều nhất</td>
+                    <td>
+                        {% for word, count in result.ref_metrics.top_func_words %}
+                            <span class="badge">{{ word }} ({{ count }})</span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% for word, count in result.target_metrics.top_func_words %}
+                            <span class="badge">{{ word }} ({{ count }})</span>
+                        {% endfor %}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+</body>
+</html>
