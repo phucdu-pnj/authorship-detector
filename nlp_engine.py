@@ -18,10 +18,14 @@ PUNCTUATIONS = [',', ';', ':', '-', '(', ')', '"', '?', '!']
 
 class AuthorshipAnalyzer:
     def __init__(self, model_name: str = "vinai/phobert-base-v2"):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cpu")
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModel.from_pretrained(model_name).to(self.device)
-        self.model.eval()
+        base_model = AutoModel.from_pretrained(model_name, low_cpu_mem_usage=True)
+        base_model.eval()
+        # Nén trọng số INT8 trên CPU để chạy mượt trong giới hạn 512MB RAM của Render
+        self.model = torch.quantization.quantize_dynamic(
+            base_model, {torch.nn.Linear}, dtype=torch.qint8
+        )
 
     def extract_stylometry(self, text: str) -> dict:
         sentences = [s.strip() for s in re.split(r'[.!?]+', text) if s.strip()]
